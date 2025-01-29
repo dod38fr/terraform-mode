@@ -294,7 +294,7 @@ Return nil if not found."
            (re-search-forward "^[[:blank:]]*source[[:blank:]]*=[[:blank:]]*\"\\([a-z/]+\\)\"" nil t))
       (match-string 1)))
 
-(defun terraform--resource-url (resource doc-dir)
+(defun terraform--resource-url (resource doc-dir parameter)
   "Return the url containing the documentation for RESOURCE using DOC-DIR."
   (let* ((provider (terraform--extract-provider resource))
           ;; search provider source in terraform files
@@ -306,18 +306,19 @@ Return nil if not found."
                              (terraform--get-resource-provider-namespace provider)
                              "/" provider)))
     (if (> (length provider-source) 0)
-        (format "https://registry.terraform.io/providers/%s/latest/docs/%s/%s"
-                provider-source doc-dir resource-name)
+        (format "https://registry.terraform.io/providers/%s/latest/docs/%s/%s%s"
+                provider-source doc-dir resource-name parameter)
       (user-error "Can not determine the provider source for %s" provider))))
 
 (defun terraform--resource-url-at-point ()
   (save-excursion
     (goto-char (line-beginning-position))
-    (unless (looking-at-p "^resource\\|^data")
-      (re-search-backward "^resource\\|^data" nil t))
-    (let ((doc-dir (if (equal (word-at-point) "data") "data-sources" "resources")))
-      (forward-symbol 2)
-      (terraform--resource-url (thing-at-point 'symbol) doc-dir))))
+    (let ((parameter (if (looking-at-p "^resource\\|^data") "" (format "#%s-1" word-at-point))))
+        (unless (looking-at-p "^resource\\|^data")
+          (re-search-backward "^resource\\|^data" nil t))
+      (let ((doc-dir (if (equal (word-at-point) "data") "data-sources" "resources")))
+        (forward-symbol 2)
+        (terraform--resource-url (thing-at-point 'symbol) doc-dir parameter)))))
 
 (defun terraform-open-doc ()
   "Open a browser at the URL documenting the resource at point."
